@@ -1,0 +1,23 @@
+# Build and IDE files
+target/
+.m2/
+.idea/
+.vscode/
+*.iml
+
+# Local application data - never version client data
+data/
+backups/
+logs/
+*.db
+*.db-shm
+*.db-wal
+
+# Generated delivery files
+releases/**/*.exe
+releases/**/*.msi
+releases/**/*.zip
+
+# Secrets and machine-specific configuration
+*.local.properties
+server.local.properties
