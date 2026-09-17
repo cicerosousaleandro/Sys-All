@@ -772,24 +772,26 @@ public final class PaymentsPrintService {
             pagina.setPadding(new Insets(4));
             pagina.setStyle("-fx-background-color: white;");
 
+            double fichaWidth = width - 8;
+
             pagina.getChildren().add(
                     criarFicha(
                             lista,
                             itens.get(i),
-                            width,
+                            fichaWidth,
                             fichaHeight
                     )
             );
 
             if (i + 1 < itens.size()) {
                 pagina.getChildren().add(
-                        criarLinhaCorte(width)
+                        criarLinhaCorte(fichaWidth)
                 );
                 pagina.getChildren().add(
                         criarFicha(
                                 lista,
                                 itens.get(i + 1),
-                                width,
+                                fichaWidth,
                                 fichaHeight
                         )
                 );
@@ -802,7 +804,7 @@ public final class PaymentsPrintService {
             VBox pagina = new VBox();
             pagina.setPrefSize(width, height);
             pagina.getChildren().add(
-                    criarFichaVazia(width, fichaHeight)
+                    criarFichaVazia(width - 8, fichaHeight)
             );
             paginas.add(pagina);
         }

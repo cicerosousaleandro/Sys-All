@@ -6,7 +6,6 @@ import br.com.sysall.payments.domain.model.ListaPagamento;
 import br.com.sysall.payments.domain.model.Pagamento;
 import br.com.sysall.payments.domain.model.Trabalhador;
 import br.com.sysall.payments.infrastructure.printing.PaymentsPrintService;
-
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -355,7 +354,6 @@ public final class ListasPagamentoWindow {
                     }
 
                     try {
-
                         application.conferirLista(
                                 selecionada.getId()
                         );
@@ -371,7 +369,6 @@ public final class ListasPagamentoWindow {
                         );
 
                     } catch (Exception erro) {
-
                         mostrarErro(
                                 stage,
                                 erro.getMessage()
@@ -396,7 +393,6 @@ public final class ListasPagamentoWindow {
                     }
 
                     try {
-
                         application.fecharLista(
                                 selecionada.getId()
                         );
@@ -412,7 +408,6 @@ public final class ListasPagamentoWindow {
                         );
 
                     } catch (Exception erro) {
-
                         mostrarErro(
                                 stage,
                                 erro.getMessage()
@@ -585,23 +580,10 @@ public final class ListasPagamentoWindow {
                         listaId
                 ).orElseThrow();
 
-        List<Trabalhador> trabalhadores =
-                application.listarTrabalhadores();
-
         Map<UUID, Trabalhador> mapa =
-                new HashMap<>();
-
-        for (Trabalhador trabalhador :
-                trabalhadores) {
-
-            mapa.put(
-                    trabalhador.getId(),
-                    trabalhador
-            );
-        }
-
-        final ListaPagamento[] listaAtual =
-                {lista};
+                criarMapaTrabalhadores(
+                        application.listarTrabalhadores()
+                );
 
         Stage stage =
                 new Stage();
@@ -689,10 +671,9 @@ public final class ListasPagamentoWindow {
                 valor
         );
 
-        tabela.setItems(
-                FXCollections.observableArrayList(
-                        listaAtual[0].getPagamentos()
-                )
+        atualizarTabelaPagamentos(
+                tabela,
+                lista
         );
 
         Label titulo =
@@ -712,7 +693,7 @@ public final class ListasPagamentoWindow {
                 new Label(
                         "Período: "
                                 + formatarPeriodo(
-                                listaAtual[0]
+                                lista
                         )
                 );
 
@@ -723,12 +704,20 @@ public final class ListasPagamentoWindow {
                         + ";"
         );
 
+        Label status =
+                new Label();
+
+        atualizarStatus(
+                status,
+                lista
+        );
+
         Label total =
                 new Label();
 
         atualizarTotal(
                 total,
-                listaAtual[0]
+                lista
         );
 
         Button adicionar =
@@ -745,43 +734,60 @@ public final class ListasPagamentoWindow {
 
         Button imprimirRelatorio =
                 criarBotao(
-                        "Imprimir Relatório",
+                        "Pré-visualizar Relatório",
                         PRIMARY
                 );
 
         Button imprimirFichas =
                 criarBotao(
-                        "Imprimir Fichas",
+                        "Pré-visualizar Fichas",
                         GREEN
                 );
 
-        boolean emEdicao =
-                listaAtual[0].getStatus()
-                        == StatusListaPagamento.EM_EDICAO;
-
-        adicionar.setDisable(
-                !emEdicao
-        );
-
-        remover.setDisable(
-                !emEdicao
+        atualizarEstadoBotoes(
+                lista,
+                adicionar,
+                remover
         );
 
         adicionar.setOnAction(
-                event ->
+                event -> {
+                    try {
+                        ListaPagamento atual =
+                                application.buscarLista(
+                                        listaId
+                                ).orElseThrow();
+
                         adicionarPagamento(
                                 owner,
                                 application,
-                                listaAtual[0],
+                                atual,
                                 mapa,
                                 tabela,
                                 total
-                        )
+                        );
+
+                        atualizarJanelaLista(
+                                application,
+                                listaId,
+                                tabela,
+                                periodo,
+                                status,
+                                total,
+                                adicionar,
+                                remover
+                        );
+                    } catch (Exception erro) {
+                        mostrarErro(
+                                stage,
+                                erro.getMessage()
+                        );
+                    }
+                }
         );
 
         remover.setOnAction(
                 event -> {
-
                     Pagamento pagamento =
                             tabela.getSelectionModel()
                                     .getSelectedItem();
@@ -795,30 +801,22 @@ public final class ListasPagamentoWindow {
                     }
 
                     try {
-
                         application.removerPagamento(
-                                listaAtual[0].getId(),
+                                listaId,
                                 pagamento.getId()
                         );
 
-                        listaAtual[0] =
-                                application.buscarLista(
-                                        listaAtual[0].getId()
-                                ).orElseThrow();
-
-                        tabela.setItems(
-                                FXCollections.observableArrayList(
-                                        listaAtual[0].getPagamentos()
-                                )
-                        );
-
-                        atualizarTotal(
+                        atualizarJanelaLista(
+                                application,
+                                listaId,
+                                tabela,
+                                periodo,
+                                status,
                                 total,
-                                listaAtual[0]
+                                adicionar,
+                                remover
                         );
-
                     } catch (Exception erro) {
-
                         mostrarErro(
                                 stage,
                                 erro.getMessage()
@@ -829,22 +827,23 @@ public final class ListasPagamentoWindow {
 
         imprimirRelatorio.setOnAction(
                 event -> {
-
                     try {
-
-                        ListaPagamento atualizada =
+                        ListaPagamento atual =
                                 application.buscarLista(
-                                        listaAtual[0].getId()
+                                        listaId
                                 ).orElseThrow();
 
-                        PaymentsPrintService
-                                .imprimirRelatorioSemanal(
-                                        atualizada,
-                                        mapa
+                        Map<UUID, Trabalhador> mapaAtual =
+                                criarMapaTrabalhadores(
+                                        application.listarTrabalhadores()
                                 );
 
+                        PaymentsPrintService.mostrarPreviewRelatorio(
+                                stage,
+                                atual,
+                                mapaAtual
+                        );
                     } catch (Exception erro) {
-
                         mostrarErro(
                                 stage,
                                 erro.getMessage()
@@ -855,22 +854,23 @@ public final class ListasPagamentoWindow {
 
         imprimirFichas.setOnAction(
                 event -> {
-
                     try {
-
-                        ListaPagamento atualizada =
+                        ListaPagamento atual =
                                 application.buscarLista(
-                                        listaAtual[0].getId()
+                                        listaId
                                 ).orElseThrow();
 
-                        PaymentsPrintService
-                                .imprimirFichasAssinatura(
-                                        atualizada,
-                                        mapa
+                        Map<UUID, Trabalhador> mapaAtual =
+                                criarMapaTrabalhadores(
+                                        application.listarTrabalhadores()
                                 );
 
+                        PaymentsPrintService.mostrarPreviewFichas(
+                                stage,
+                                atual,
+                                mapaAtual
+                        );
                     } catch (Exception erro) {
-
                         mostrarErro(
                                 stage,
                                 erro.getMessage()
@@ -894,9 +894,10 @@ public final class ListasPagamentoWindow {
 
         VBox root =
                 new VBox(
-                        14,
+                        12,
                         titulo,
                         periodo,
+                        status,
                         tabela,
                         total,
                         botoes
@@ -914,13 +915,122 @@ public final class ListasPagamentoWindow {
         stage.setScene(
                 new Scene(
                         root,
-                        1000,
-                        650
+                        1100,
+                        680
+                )
+        );
+
+        stage.setOnHidden(
+                event -> carregarListas(
+                        tabelaPrincipal,
+                        application
                 )
         );
 
         stage.centerOnScreen();
         stage.show();
+    }
+
+    private static Map<UUID, Trabalhador> criarMapaTrabalhadores(
+            List<Trabalhador> trabalhadores) {
+
+        Map<UUID, Trabalhador> mapa =
+                new HashMap<>();
+
+        for (Trabalhador trabalhador : trabalhadores) {
+            mapa.put(
+                    trabalhador.getId(),
+                    trabalhador
+            );
+        }
+
+        return mapa;
+    }
+
+    private static void atualizarTabelaPagamentos(
+            TableView<Pagamento> tabela,
+            ListaPagamento lista) {
+
+        tabela.setItems(
+                FXCollections.observableArrayList(
+                        lista.getPagamentos()
+                )
+        );
+    }
+
+    private static void atualizarJanelaLista(
+            PaymentsApplication application,
+            UUID listaId,
+            TableView<Pagamento> tabela,
+            Label periodo,
+            Label status,
+            Label total,
+            Button adicionar,
+            Button remover) {
+
+        ListaPagamento atual =
+                application.buscarLista(
+                        listaId
+                ).orElseThrow();
+
+        atualizarTabelaPagamentos(
+                tabela,
+                atual
+        );
+
+        periodo.setText(
+                "Período: "
+                        + formatarPeriodo(atual)
+        );
+
+        atualizarStatus(
+                status,
+                atual
+        );
+
+        atualizarTotal(
+                total,
+                atual
+        );
+
+        atualizarEstadoBotoes(
+                atual,
+                adicionar,
+                remover
+        );
+    }
+
+    private static void atualizarEstadoBotoes(
+            ListaPagamento lista,
+            Button adicionar,
+            Button remover) {
+
+        boolean editavel =
+                lista.getStatus()
+                        == StatusListaPagamento.EM_EDICAO;
+
+        adicionar.setDisable(!editavel);
+        remover.setDisable(!editavel);
+    }
+
+    private static void atualizarStatus(
+            Label label,
+            ListaPagamento lista) {
+
+        label.setText(
+                "Status: "
+                        + formatarStatus(
+                        lista.getStatus()
+                )
+        );
+
+        label.setStyle(
+                "-fx-font-size: 13px;"
+                        + "-fx-font-weight: bold;"
+                        + "-fx-text-fill: "
+                        + PRIMARY
+                        + ";"
+        );
     }
 
     private static void adicionarPagamento(
@@ -962,7 +1072,6 @@ public final class ListasPagamentoWindow {
         trabalhador.setCellFactory(
                 combo ->
                         new javafx.scene.control.ListCell<>() {
-
                             @Override
                             protected void updateItem(
                                     Trabalhador item,
@@ -984,7 +1093,6 @@ public final class ListasPagamentoWindow {
 
         trabalhador.setButtonCell(
                 new javafx.scene.control.ListCell<>() {
-
                     @Override
                     protected void updateItem(
                             Trabalhador item,
